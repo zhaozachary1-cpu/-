@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "qcc-agent-cli": "^1.0.8"
+  }
+}

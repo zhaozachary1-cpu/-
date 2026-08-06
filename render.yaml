@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: interview-atlas
+    runtime: node
+    plan: free
+    buildCommand: npm ci
+    startCommand: npx qcc-agent-cli init --authorization "$QCC_AUTHORIZATION" && npm start
+    healthCheckPath: /
+    envVars:
+      - key: QCC_AUTHORIZATION
+        sync: false

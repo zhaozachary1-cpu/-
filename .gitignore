@@ -1,0 +1,6 @@
+node_modules/
+.qcc/
+.env
+.env.*
+*.log
+interview-records.json
