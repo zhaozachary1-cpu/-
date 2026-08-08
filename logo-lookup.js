@@ -19,8 +19,14 @@
       form.elements.location.value = data.address || '';
       form.elements.industry.value = data.industry || '';
       form.elements.product.value = data.product || '';
+      form.elements.foundedAt && (form.elements.foundedAt.value = data.foundedAt || '');
+      form.elements.companyScale && (form.elements.companyScale.value = data.companyScale || '');
+      form.elements.employeeCount && (form.elements.employeeCount.value = data.employeeCount || '');
+      form.elements.revenue && (form.elements.revenue.value = data.revenue || '');
+      form.elements.listingStatus && (form.elements.listingStatus.value = data.listingStatus || '');
+      form.elements.financingStatus && (form.elements.financingStatus.value = data.financingStatus || '');
       hidden.value = data.logoUrl || '';
-      status.textContent = data.logoUrl ? '查询成功：已回填公司信息与公开 Logo。' : '查询成功：已回填地址与行业，未找到可确认的 Logo。';
+      status.textContent = '查询成功：已回填公司信息与企业画像数据。';
     } catch (error) { status.textContent = error.message || '查询失败，请稍后重试。'; }
   }, true);
 })();

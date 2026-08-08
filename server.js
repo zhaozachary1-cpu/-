@@ -14,8 +14,8 @@ function send(res, status, body, type = 'application/json; charset=utf-8') {
   res.end(Buffer.isBuffer(body) || typeof body === 'string' ? body : JSON.stringify(body));
 }
 
-async function qcc(tool, company) {
-  const { stdout } = await run('npx', ['qcc-agent-cli', 'company', tool, '--json', '--searchKey', company], { cwd: root, timeout: 30000 });
+async function qcc(service, tool, company) {
+  const { stdout } = await run('npx', ['qcc-agent-cli', service, tool, '--json', '--searchKey', company], { cwd: root, timeout: 30000 });
   const jsonStart = stdout.indexOf('{');
   if (jsonStart < 0) throw new Error('企查查未返回结构化数据');
   return JSON.parse(stdout.slice(jsonStart));
@@ -23,6 +23,44 @@ async function qcc(tool, company) {
 
 function pick(obj, candidates) {
   for (const key of candidates) if (obj && obj[key]) return obj[key];
+  return '';
+}
+
+function deepPick(value, candidates) {
+  const wanted = new Set(candidates.map((item) => item.toLowerCase()));
+  const queue = [value];
+  const visited = new Set();
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || typeof current !== 'object' || visited.has(current)) continue;
+    visited.add(current);
+    for (const [key, item] of Object.entries(current)) {
+      if (wanted.has(key.toLowerCase()) && item !== '' && item != null) return item;
+      if (item && typeof item === 'object') queue.push(item);
+    }
+  }
+  return '';
+}
+
+function containsNoData(value) {
+  return /未发现|无匹配|暂无|无相关|没有记录/.test(JSON.stringify(value || {}));
+}
+
+function financingStatus(value) {
+  const queue = [value];
+  const visited = new Set();
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || typeof current !== 'object' || visited.has(current)) continue;
+    visited.add(current);
+    if (Array.isArray(current) && current[0] && typeof current[0] === 'object' && ('融资轮次' in current[0] || 'Round' in current[0])) {
+      const latest = current[0];
+      const round = pick(latest, ['融资轮次', 'Round', 'round']);
+      const date = pick(latest, ['融资日期', 'Date', 'date']);
+      return round ? `${round}${date ? ` · ${date}` : ''}` : '';
+    }
+    Object.values(current).forEach((item) => { if (item && typeof item === 'object') queue.push(item); });
+  }
   return '';
 }
 
@@ -81,12 +119,18 @@ const server = http.createServer(async (req, res) => {
     const name = url.searchParams.get('name')?.trim();
     if (!name) return send(res, 400, { error: '请填写公司名称' });
     try {
-      const [registration, profile] = await Promise.all([
-        qcc('get_company_registration_info', name),
-        qcc('get_company_profile', name).catch(() => ({})),
+      const [registration, profile, financial, listing, financing] = await Promise.all([
+        qcc('company', 'get_company_registration_info', name),
+        qcc('company', 'get_company_profile', name).catch(() => ({})),
+        qcc('company', 'get_financial_data', name).catch(() => ({})),
+        qcc('company', 'get_listing_info', name).catch(() => ({})),
+        qcc('operation', 'get_financing_records', name).catch(() => ({})),
       ]);
       const registrationData = registration.data || registration.result || registration;
       const profileData = profile.data || profile.result || profile;
+      const financialData = financial.data || financial.result || financial;
+      const listingData = listing.data || listing.result || listing;
+      const financingData = financing.data || financing.result || financing;
       const officialName = pick(registrationData, ['Name', 'name', '企业名称', 'CompanyName']) || name;
       const shortName = pick(registrationData, ['企业简称', 'ShortName', 'shortName']);
       const qccLogo = pick(profileData, ['Logo', 'LogoUrl', 'logo', 'logoUrl', '企业头像', '头像', '品牌图片']);
@@ -98,6 +142,12 @@ const server = http.createServer(async (req, res) => {
           pick(profileData, ['Industry', '行业', 'industry', 'IndustryName']) || pick(registrationData, ['Industry', '行业', 'industry', '国标行业']),
           pick(profileData, ['Introduction', '简介', 'Profile', 'BusinessScope']),
         ),
+        foundedAt: pick(registrationData, ['成立日期', 'EstablishedDate', 'StartDate', '成立时间']),
+        companyScale: pick(registrationData, ['人员规模', '企业规模', 'Scale', 'EmployeeScale']),
+        employeeCount: pick(registrationData, ['参保人数', '员工人数', 'EmployeeCount', 'Employees']),
+        revenue: deepPick(financialData, ['营业收入', '营业总收入', '主营业务收入', 'Revenue', 'OperatingRevenue']) || '',
+        listingStatus: containsNoData(listingData) ? '未发现公开上市记录' : (deepPick(listingData, ['股票代码', 'StockCode', '股票简称', 'StockName']) ? '已上市' : '未发现公开上市记录'),
+        financingStatus: financingStatus(financingData) || (containsNoData(financingData) ? '暂无公开融资记录' : '暂无公开融资记录'),
         logoUrl: qccLogo || await findPublicLogo(officialName, shortName),
       });
     } catch (error) {
@@ -106,7 +156,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-  const publicFiles = new Set(['index.html', 'picker.js', 'persistence.js', 'status.js', 'status-board.js', 'form-submit.js', 'record-interactions.js', 'logo-lookup.js', 'calendar-board.js', 'theme.js', 'work-schedule.js', 'backup.js', 'company-detail-expand.js', 'mobile-responsive.js']);
+  const publicFiles = new Set(['index.html', 'picker.js', 'persistence.js', 'status.js', 'status-board.js', 'form-submit.js', 'record-interactions.js', 'logo-lookup.js', 'calendar-board.js', 'theme.js', 'work-schedule.js', 'backup.js', 'company-detail-expand.js', 'company-profile.js', 'mobile-responsive.js']);
   if (!publicFiles.has(file)) return send(res, 404, 'Not found', 'text/plain');
   const target = path.join(root, file);
   if (!target.startsWith(root) || !fs.existsSync(target)) return send(res, 404, 'Not found', 'text/plain');
@@ -115,7 +165,7 @@ const server = http.createServer(async (req, res) => {
   if (file === 'index.html') {
     const build = process.env.RENDER_GIT_COMMIT || String(fs.statSync(target).mtimeMs);
     const asset = (name) => `<script src="/${name}?v=${encodeURIComponent(build)}"></script>`;
-    contents = contents.toString('utf8').replace('</body>', `${asset('picker.js')}${asset('status.js')}${asset('status-board.js')}${asset('form-submit.js')}${asset('record-interactions.js')}${asset('logo-lookup.js')}${asset('calendar-board.js')}${asset('theme.js')}${asset('work-schedule.js')}${asset('persistence.js')}${asset('backup.js')}${asset('company-detail-expand.js')}${asset('mobile-responsive.js')}</body>`);
+    contents = contents.toString('utf8').replace('</body>', `${asset('picker.js')}${asset('status.js')}${asset('status-board.js')}${asset('form-submit.js')}${asset('record-interactions.js')}${asset('logo-lookup.js')}${asset('calendar-board.js')}${asset('theme.js')}${asset('work-schedule.js')}${asset('persistence.js')}${asset('backup.js')}${asset('company-detail-expand.js')}${asset('company-profile.js')}${asset('mobile-responsive.js')}</body>`);
   }
   send(res, 200, contents, type);
 });
