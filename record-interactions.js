@@ -36,15 +36,7 @@
     pendingDelete = null;
     save();
     confirmDialog.close();
-    if (selected) draw();
-    else {
-      document.querySelector('#records').innerHTML = '';
-      document.querySelector('#detail').innerHTML = '<div class="eyebrow">COMPANY INFO</div><h2>暂无面试记录</h2><div class="role">点击“新增面试记录”开始记录。</div>';
-      document.querySelector('#count').textContent = '共 0 条';
-      Object.values(map).forEach((className) => { const item = document.querySelector(`#n-${className}`); if (item) item.textContent = '0'; });
-      const board = document.querySelector('#statusBoard');
-      if (board) board.querySelectorAll('strong').forEach((item) => { item.textContent = '0'; });
-    }
+    draw();
     toast('记录已删除');
   };
 
