@@ -12,7 +12,7 @@
     const actions = form.querySelector('.actions');
     const profile = document.createElement('section');
     profile.className = 'company-profile-fields full';
-    profile.innerHTML = `<div class="company-profile-heading"><div><span>QCC COMPANY PROFILE</span><strong>企查查企业画像</strong></div><em>查询后自动回填</em></div><div class="company-profile-grid">${fields.map(([name, label]) => `<label>${label}<input name="${name}" readonly placeholder="查询后自动填充"></label>`).join('')}</div>`;
+    profile.innerHTML = `<div class="company-profile-heading"><div><span>QCC COMPANY PROFILE</span><strong>企查查企业画像</strong></div><em>查询后可手动编辑</em></div><div class="company-profile-grid">${fields.map(([name, label]) => `<label>${label}<input name="${name}" placeholder="查询后自动填充"></label>`).join('')}</div>`;
     actions.before(profile);
 
     const style = document.createElement('style');
