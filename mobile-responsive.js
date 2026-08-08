@@ -101,7 +101,7 @@
 
   const style = document.createElement('style');
   style.textContent = `
-    .mobile-status-overview,.mobile-view-switch,.mobile-detail-page{display:none}
+    .mobile-status-overview,.mobile-view-switch,.mobile-detail-page,.mobile-theme-cycle{display:none}
     @media (max-width:680px){
       body{min-width:0;background:radial-gradient(circle at 86% -8%,#847bff32,transparent 35%),var(--bg)}
       .app{display:flex!important;flex-direction:column;gap:14px;padding:14px;padding-bottom:calc(26px + env(safe-area-inset-bottom))}
