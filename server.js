@@ -106,7 +106,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-  const publicFiles = new Set(['index.html', 'picker.js', 'persistence.js', 'status.js', 'status-board.js', 'review.js', 'form-submit.js', 'record-interactions.js', 'logo-lookup.js', 'calendar-board.js', 'theme.js', 'work-schedule.js', 'backup.js', 'company-detail-expand.js', 'mobile-responsive.js']);
+  const publicFiles = new Set(['index.html', 'picker.js', 'persistence.js', 'status.js', 'status-board.js', 'form-submit.js', 'record-interactions.js', 'logo-lookup.js', 'calendar-board.js', 'theme.js', 'work-schedule.js', 'backup.js', 'company-detail-expand.js', 'mobile-responsive.js']);
   if (!publicFiles.has(file)) return send(res, 404, 'Not found', 'text/plain');
   const target = path.join(root, file);
   if (!target.startsWith(root) || !fs.existsSync(target)) return send(res, 404, 'Not found', 'text/plain');
@@ -115,7 +115,7 @@ const server = http.createServer(async (req, res) => {
   if (file === 'index.html') {
     const build = process.env.RENDER_GIT_COMMIT || String(fs.statSync(target).mtimeMs);
     const asset = (name) => `<script src="/${name}?v=${encodeURIComponent(build)}"></script>`;
-    contents = contents.toString('utf8').replace('</body>', `${asset('picker.js')}${asset('status.js')}${asset('status-board.js')}${asset('review.js')}${asset('form-submit.js')}${asset('record-interactions.js')}${asset('logo-lookup.js')}${asset('calendar-board.js')}${asset('theme.js')}${asset('work-schedule.js')}${asset('persistence.js')}${asset('backup.js')}${asset('company-detail-expand.js')}${asset('mobile-responsive.js')}</body>`);
+    contents = contents.toString('utf8').replace('</body>', `${asset('picker.js')}${asset('status.js')}${asset('status-board.js')}${asset('form-submit.js')}${asset('record-interactions.js')}${asset('logo-lookup.js')}${asset('calendar-board.js')}${asset('theme.js')}${asset('work-schedule.js')}${asset('persistence.js')}${asset('backup.js')}${asset('company-detail-expand.js')}${asset('mobile-responsive.js')}</body>`);
   }
   send(res, 200, contents, type);
 });
