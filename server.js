@@ -104,14 +104,14 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   const file = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-  const publicFiles = new Set(['index.html', 'picker.js', 'persistence.js', 'status.js', 'status-board.js', 'review.js', 'form-submit.js', 'record-interactions.js', 'logo-lookup.js', 'calendar-board.js', 'theme.js', 'work-schedule.js', 'backup.js', 'company-detail-expand.js']);
+  const publicFiles = new Set(['index.html', 'picker.js', 'persistence.js', 'status.js', 'status-board.js', 'review.js', 'form-submit.js', 'record-interactions.js', 'logo-lookup.js', 'calendar-board.js', 'theme.js', 'work-schedule.js', 'backup.js', 'company-detail-expand.js', 'mobile-responsive.js']);
   if (!publicFiles.has(file)) return send(res, 404, 'Not found', 'text/plain');
   const target = path.join(root, file);
   if (!target.startsWith(root) || !fs.existsSync(target)) return send(res, 404, 'Not found', 'text/plain');
   const type = target.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8';
   let contents = fs.readFileSync(target);
   if (file === 'index.html') {
-    contents = contents.toString('utf8').replace('</body>', '<script src="/picker.js"></script><script src="/status.js"></script><script src="/status-board.js"></script><script src="/review.js"></script><script src="/form-submit.js"></script><script src="/record-interactions.js"></script><script src="/logo-lookup.js"></script><script src="/calendar-board.js"></script><script src="/theme.js"></script><script src="/work-schedule.js"></script><script src="/persistence.js"></script><script src="/backup.js"></script><script src="/company-detail-expand.js"></script></body>');
+    contents = contents.toString('utf8').replace('</body>', '<script src="/picker.js"></script><script src="/status.js"></script><script src="/status-board.js"></script><script src="/review.js"></script><script src="/form-submit.js"></script><script src="/record-interactions.js"></script><script src="/logo-lookup.js"></script><script src="/calendar-board.js"></script><script src="/theme.js"></script><script src="/work-schedule.js"></script><script src="/persistence.js"></script><script src="/backup.js"></script><script src="/company-detail-expand.js"></script><script src="/mobile-responsive.js"></script></body>');
   }
   send(res, 200, contents, type);
 });

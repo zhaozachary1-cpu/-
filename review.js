@@ -93,6 +93,7 @@
   const baseDraw = draw;
   draw = () => {
     baseDraw();
+    if (!selected) return;
     const detail = document.querySelector('#detail');
     const legacyTitle = [...detail.querySelectorAll('.section')].find((node) => node.textContent.includes('面试总结纪要'));
     if (legacyTitle) {
