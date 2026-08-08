@@ -8,7 +8,9 @@ const run = promisify(execFile);
 const root = __dirname;
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
-  res.writeHead(status, { 'Content-Type': type });
+  // The app is small and evolves quickly. Avoid serving a newly deployed HTML
+  // document with an older cached interaction script from a previous release.
+  res.writeHead(status, { 'Content-Type': type, 'Cache-Control': 'no-store, max-age=0' });
   res.end(Buffer.isBuffer(body) || typeof body === 'string' ? body : JSON.stringify(body));
 }
 
@@ -111,7 +113,9 @@ const server = http.createServer(async (req, res) => {
   const type = target.endsWith('.html') ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8';
   let contents = fs.readFileSync(target);
   if (file === 'index.html') {
-    contents = contents.toString('utf8').replace('</body>', '<script src="/picker.js"></script><script src="/status.js"></script><script src="/status-board.js"></script><script src="/review.js"></script><script src="/form-submit.js"></script><script src="/record-interactions.js"></script><script src="/logo-lookup.js"></script><script src="/calendar-board.js"></script><script src="/theme.js"></script><script src="/work-schedule.js"></script><script src="/persistence.js"></script><script src="/backup.js"></script><script src="/company-detail-expand.js"></script><script src="/mobile-responsive.js"></script></body>');
+    const build = process.env.RENDER_GIT_COMMIT || String(fs.statSync(target).mtimeMs);
+    const asset = (name) => `<script src="/${name}?v=${encodeURIComponent(build)}"></script>`;
+    contents = contents.toString('utf8').replace('</body>', `${asset('picker.js')}${asset('status.js')}${asset('status-board.js')}${asset('review.js')}${asset('form-submit.js')}${asset('record-interactions.js')}${asset('logo-lookup.js')}${asset('calendar-board.js')}${asset('theme.js')}${asset('work-schedule.js')}${asset('persistence.js')}${asset('backup.js')}${asset('company-detail-expand.js')}${asset('mobile-responsive.js')}</body>`);
   }
   send(res, 200, contents, type);
 });
