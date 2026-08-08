@@ -2,7 +2,7 @@
   const style = document.createElement('style');
   style.textContent = `
     .qa-field textarea{min-height:230px}.qa-hint{font-size:10px;color:var(--muted);line-height:1.6;margin:7px 0 0}.import-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}.import-file{height:30px;padding:0 11px;border:1px solid #5971c2;border-radius:8px;background:#5165d91a;color:#cbd8ff;font-size:10px;font-weight:750;cursor:pointer;transition:.18s}.import-file:hover{background:#5165d942;transform:translateY(-1px)}.import-row span{font-size:9px;color:var(--muted)}.import-row.loading .import-file{opacity:.6;pointer-events:none}
-    .qa-section{margin-top:24px}.qa-section .section{margin-bottom:0}.qa-list{display:grid;grid-template-columns:1fr;gap:10px;margin-top:11px}.qa-card{overflow:hidden;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#0e1833,#091227);box-shadow:0 8px 18px #0207172e}.qa-card-top{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:#1623428c}.qa-index{display:inline-flex;align-items:center;justify-content:center;width:32px;height:19px;border-radius:6px;background:#31d6db18;color:var(--cyan);font-size:9px;font-weight:800;letter-spacing:.06em}.qa-label{color:#aebddb;font-size:10px;font-weight:750}.qa-question{padding:11px 13px 13px;color:#e5ecff;font-size:12px;font-weight:720;line-height:1.7}.qa-answer{padding:12px 13px 14px;border-top:1px dashed #334162;color:#b8c5e1;font-size:11px;line-height:1.75}.qa-answer b{display:block;margin-bottom:5px;color:#8fa3ca;font-size:9px;letter-spacing:.08em}.qa-empty{margin-top:11px}.qa-upload-link{margin-top:10px}
+    .qa-section{margin-top:24px}.qa-section .section{margin-bottom:0}.qa-list{display:grid;grid-template-columns:1fr;gap:10px;margin-top:11px}.qa-card{overflow:hidden;border:1px solid var(--line);border-radius:14px;background:linear-gradient(145deg,#0e1833,#091227);box-shadow:0 8px 18px #0207172e}.qa-card-top{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);background:#1623428c}.qa-index{display:inline-flex;align-items:center;justify-content:center;width:32px;height:19px;border-radius:6px;background:#31d6db18;color:var(--cyan);font-size:9px;font-weight:800;letter-spacing:.06em}.qa-label{color:#aebddb;font-size:10px;font-weight:750}.qa-question{padding:11px 13px 13px;color:#e5ecff;font-size:12px;font-weight:720;line-height:1.7;white-space:pre-wrap}.qa-answer{padding:12px 13px 14px;border-top:1px dashed #334162;color:#b8c5e1;font-size:11px;line-height:1.75;white-space:pre-wrap}.qa-answer b{display:block;margin-bottom:5px;color:#8fa3ca;font-size:9px;letter-spacing:.08em}.qa-empty{margin-top:11px}.qa-upload-link{margin-top:10px}.qa-raw-card{border-color:#5d70bc}.qa-raw-card .qa-index{width:auto;padding:0 7px}
     :root[data-theme="light"] .import-file{background:#e7ecff;color:#4052be;border-color:#b8c5ee}:root[data-theme="light"] .import-file:hover{background:#dce4ff}:root[data-theme="light"] .qa-card{background:linear-gradient(145deg,#fff,#f7f9ff);box-shadow:0 8px 18px rgba(40,59,104,.07)}:root[data-theme="light"] .qa-card-top{background:#edf2ff}:root[data-theme="light"] .qa-label{color:#586783}:root[data-theme="light"] .qa-question{color:#1d2943}:root[data-theme="light"] .qa-answer{border-color:#d7deee;color:#5e6c86}:root[data-theme="light"] .qa-answer b{color:#596bc2}
   `;
   document.head.append(style);
@@ -59,14 +59,36 @@
   });
 
   const parseQA = (text) => {
-    const source = String(text || '').trim();
+    const source = String(text || '').replace(/\r/g, '').trim();
     if (!source) return [];
-    const blocks = source.split(/(?=(?:问题|Q)\s*[：:])/i).filter(Boolean);
-    return blocks.map((block) => {
-      const question = (block.match(/^(?:问题|Q)\s*[：:]\s*([\s\S]*?)(?=(?:回答|A)\s*[：:]|$)/i)?.[1] || '').trim();
-      const answer = (block.match(/(?:回答|A)\s*[：:]\s*([\s\S]*)$/i)?.[1] || '').trim();
-      return question && answer ? { question, answer } : null;
-    }).filter(Boolean);
+    // Supports plain “问题：/回答：”, Markdown headings, numbered labels,
+    // and common variants such as “我的回答” and “面试官问题”.
+    const marker = '(?:#{1,6}\\s*)?(?:[-*]\\s*)?(?:问题|面试官(?:的问题)?|Q)(?:\\s*[0-9一二三四五六七八九十]+)?\\s*[：:]?';
+    const answerMarker = '(?:#{1,6}\\s*)?(?:[-*]\\s*)?(?:回答|我的回答|答|A)\\s*[：:]?';
+    const pair = new RegExp(`(?:^|\\n)\\s*${marker}\\s*([\\s\\S]*?)(?=\\n\\s*${answerMarker})(?:\\n\\s*${answerMarker})\\s*([\\s\\S]*?)(?=\\n\\s*${marker}|$)`, 'gi');
+    const items = [];
+    let match;
+    while ((match = pair.exec(source))) {
+      const question = match[1].trim().replace(/^#+\s*/, '');
+      const answer = match[2].trim();
+      if (question && answer) items.push({ question, answer });
+    }
+    if (items.length) return items;
+
+    // A line-oriented fallback handles “Q1 / A1” documents without colons.
+    let question = '';
+    let answer = '';
+    let mode = '';
+    const flush = () => { if (question.trim() && answer.trim()) items.push({ question: question.trim(), answer: answer.trim() }); question = ''; answer = ''; };
+    source.split('\n').forEach((line) => {
+      const clean = line.replace(/^\s*(?:#{1,6}|[-*])\s*/, '').trim();
+      if (/^(?:问题|面试官(?:的问题)?|Q)\s*\d*\b/i.test(clean)) { flush(); mode = 'question'; question = clean.replace(/^(?:问题|面试官(?:的问题)?|Q)\s*\d*\s*[：:]?\s*/i, ''); return; }
+      if (/^(?:回答|我的回答|答|A)\s*\d*\b/i.test(clean)) { mode = 'answer'; answer = clean.replace(/^(?:回答|我的回答|答|A)\s*\d*\s*[：:]?\s*/i, ''); return; }
+      if (mode === 'question') question += `${question ? '\n' : ''}${clean}`;
+      if (mode === 'answer') answer += `${answer ? '\n' : ''}${clean}`;
+    });
+    flush();
+    return items;
   };
 
   const openQA = (id) => {
@@ -83,11 +105,12 @@
     event.preventDefault();
     event.stopImmediatePropagation();
     const data = Object.fromEntries(new FormData(form));
+    const parsed = parseQA(data.qaText);
     records = records.map((record) => record.id === data.recordId
-      ? { ...record, qaText: data.qaText, qa: parseQA(data.qaText) }
+      ? { ...record, qaText: data.qaText, qa: parsed }
       : record);
     selected = records.find((record) => record.id === data.recordId);
-    save(); draw(); dialog.close(); toast('面试问答已保存');
+    save(); draw(); dialog.close(); toast(parsed.length ? `已保存并生成 ${parsed.length} 张问答卡片` : '已保存问答原文，可在公司详情查看');
   }, true);
 
   const baseDraw = draw;
@@ -102,10 +125,12 @@
       if (note?.classList.contains('note')) note.remove();
     }
     detail.querySelector('#summary')?.remove();
-    const items = selected.qa || parseQA(selected.qaText);
+    const parsedItems = Array.isArray(selected.qa) && selected.qa.length ? selected.qa : parseQA(selected.qaText);
+    const rawText = String(selected.qaText || '').trim();
+    const items = parsedItems.length ? parsedItems : rawText ? [{ question: '已导入的面试问答', answer: rawText, fallback: true }] : [];
     const section = document.createElement('section');
     section.className = 'qa-section';
-    section.innerHTML = `<div class="section">面试问题与我的回答</div>${items.length ? `<div class="qa-list">${items.map((item, index) => `<article class="qa-card"><div class="qa-card-top"><span class="qa-index">Q${String(index + 1).padStart(2, '0')}</span><span class="qa-label">面试官的问题</span></div><div class="qa-question">${esc(item.question)}</div><div class="qa-answer"><b>我的回答</b>${esc(item.answer)}</div></article>`).join('')}</div>` : `<div class="note qa-empty"><b>尚未导入问答</b>上传 Markdown、PDF 或 Word 文档后，这里会自动整理成可复盘的问答卡片。</div>`}<button class="link qa-upload-link" id="qaUpload">${items.length ? '更新面试问答' : '上传面试问答'}</button>`;
+    section.innerHTML = `<div class="section">面试问题与我的回答</div>${items.length ? `<div class="qa-list">${items.map((item, index) => `<article class="qa-card ${item.fallback ? 'qa-raw-card' : ''}"><div class="qa-card-top"><span class="qa-index">${item.fallback ? '导入' : `Q${String(index + 1).padStart(2, '0')}`}</span><span class="qa-label">${item.fallback ? '已上传内容' : '面试官的问题'}</span></div><div class="qa-question">${esc(item.question)}</div><div class="qa-answer"><b>${item.fallback ? '问答原文' : '我的回答'}</b>${esc(item.answer)}</div></article>`).join('')}</div>` : `<div class="note qa-empty"><b>尚未导入问答</b>上传 Markdown、PDF 或 Word 文档后，这里会自动整理成可复盘的问答卡片。</div>`}<button class="link qa-upload-link" id="qaUpload">${items.length ? '更新面试问答' : '上传面试问答'}</button>`;
     detail.querySelector('.links').before(section);
     detail.querySelector('#qaUpload').onclick = () => openQA(selected.id);
   };
