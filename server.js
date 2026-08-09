@@ -3,9 +3,34 @@ const https = require('https');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const run = promisify(execFile);
 const root = __dirname;
+
+function configureQcc() {
+  const rawAuthorization = (process.env.QCC_AUTHORIZATION || process.env.QCC_DOCUMENT_AUTHORIZATION || '').trim();
+  if (!rawAuthorization) {
+    console.warn('QCC is unavailable: QCC_AUTHORIZATION is not configured.');
+    return false;
+  }
+  const authorization = /^Bearer\s+/i.test(rawAuthorization) ? rawAuthorization : `Bearer ${rawAuthorization}`;
+  const directory = path.join(os.homedir(), '.qcc');
+  fs.mkdirSync(directory, { recursive: true });
+  fs.writeFileSync(path.join(directory, 'config.json'), JSON.stringify({
+    version: '2.1',
+    mcp: {
+      enabled: true,
+      baseUrl: 'https://agent.qcc.com/mcp',
+      authorization,
+      timeout: 30000,
+    },
+  }, null, 2), { mode: 0o600 });
+  console.log('QCC CLI configuration loaded from environment.');
+  return true;
+}
+
+const qccConfigured = configureQcc();
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
   // The app is small and evolves quickly. Avoid serving a newly deployed HTML
@@ -15,6 +40,11 @@ function send(res, status, body, type = 'application/json; charset=utf-8') {
 }
 
 async function qcc(service, tool, company) {
+  if (!qccConfigured) {
+    const error = new Error('企查查服务尚未配置，请在部署环境设置 QCC_AUTHORIZATION 后重新部署。');
+    error.code = 'QCC_NOT_CONFIGURED';
+    throw error;
+  }
   const { stdout } = await run('npx', ['qcc-agent-cli', service, tool, '--json', '--searchKey', company], { cwd: root, timeout: 30000 });
   const jsonStart = stdout.indexOf('{');
   if (jsonStart < 0) throw new Error('企查查未返回结构化数据');
@@ -151,7 +181,8 @@ const server = http.createServer(async (req, res) => {
         logoUrl: qccLogo || await findPublicLogo(officialName, shortName),
       });
     } catch (error) {
-      send(res, 502, { error: '企查查查询暂时失败，请稍后重试或手动填写。' });
+      const status = error.code === 'QCC_NOT_CONFIGURED' ? 503 : 502;
+      send(res, status, { error: error.code === 'QCC_NOT_CONFIGURED' ? error.message : '企查查查询暂时失败，请稍后重试或手动填写。' });
     }
     return;
   }
