@@ -1,11 +1,8 @@
 const http = require('http');
 const https = require('https');
-const { execFile } = require('child_process');
-const { promisify } = require('util');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const run = promisify(execFile);
 const root = __dirname;
 
 function configureQcc() {
@@ -14,23 +11,29 @@ function configureQcc() {
     console.warn('QCC is unavailable: QCC_AUTHORIZATION is not configured.');
     return false;
   }
-  const authorization = /^Bearer\s+/i.test(rawAuthorization) ? rawAuthorization : `Bearer ${rawAuthorization}`;
-  const directory = path.join(os.homedir(), '.qcc');
-  fs.mkdirSync(directory, { recursive: true });
-  fs.writeFileSync(path.join(directory, 'config.json'), JSON.stringify({
-    version: '2.1',
-    mcp: {
-      enabled: true,
-      baseUrl: 'https://agent.qcc.com/mcp',
-      authorization,
-      timeout: 30000,
-    },
-  }, null, 2), { mode: 0o600 });
-  console.log('QCC CLI configuration loaded from environment.');
-  return true;
+  try {
+    const authorization = /^Bearer\s+/i.test(rawAuthorization) ? rawAuthorization : `Bearer ${rawAuthorization}`;
+    const directory = path.join(os.homedir(), '.qcc');
+    fs.mkdirSync(directory, { recursive: true });
+    fs.writeFileSync(path.join(directory, 'config.json'), JSON.stringify({
+      version: '2.1',
+      mcp: {
+        enabled: true,
+        baseUrl: 'https://agent.qcc.com/mcp',
+        authorization,
+        timeout: 30000,
+      },
+    }, null, 2), { mode: 0o600 });
+    console.log('QCC CLI configuration loaded from environment.');
+    return true;
+  } catch (error) {
+    console.error('QCC is unavailable: could not prepare its runtime configuration.');
+    return false;
+  }
 }
 
 const qccConfigured = configureQcc();
+const qccMcp = require('qcc-agent-cli/src/services/mcpService');
 
 function send(res, status, body, type = 'application/json; charset=utf-8') {
   // The app is small and evolves quickly. Avoid serving a newly deployed HTML
@@ -45,10 +48,7 @@ async function qcc(service, tool, company) {
     error.code = 'QCC_NOT_CONFIGURED';
     throw error;
   }
-  const { stdout } = await run('npx', ['qcc-agent-cli', service, tool, '--json', '--searchKey', company], { cwd: root, timeout: 30000 });
-  const jsonStart = stdout.indexOf('{');
-  if (jsonStart < 0) throw new Error('企查查未返回结构化数据');
-  return JSON.parse(stdout.slice(jsonStart));
+  return qccMcp.callTool(service, tool, { searchKey: company });
 }
 
 function pick(obj, candidates) {
