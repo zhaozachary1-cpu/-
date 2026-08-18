@@ -27,7 +27,7 @@
     const year = monthCursor.getFullYear();
     const month = monthCursor.getMonth();
     const firstDay = new Date(year, month, 1);
-    const offset = (firstDay.getDay() + 6) % 7;
+    const offset = firstDay.getDay();
     const calendarStart = new Date(year, month, 1 - offset);
     const today = toKey(new Date());
     const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -41,7 +41,7 @@
       const more = dayEvents.length > 1 ? `<span class="calendar-more">+${dayEvents.length - 1} 项日程</span>` : '';
       return `<div class="calendar-day ${day.getMonth() !== month ? 'outside' : ''} ${key === today ? 'today' : ''}"><div class="calendar-date"><span>${day.getDate()}</span></div>${events}${more}</div>`;
     }).join('');
-    panel.innerHTML = `<div class="calendar-header"><div class="calendar-heading"><div class="eyebrow">INTERVIEW CALENDAR</div><h2>${year} 年 ${month + 1} 月</h2></div><button class="calendar-today" type="button" data-calendar-today>今天</button><button class="calendar-control" type="button" data-calendar-prev aria-label="上个月">‹</button><button class="calendar-control" type="button" data-calendar-next aria-label="下个月">›</button></div><div class="calendar-weekdays"><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span><span>周日</span></div><div class="calendar-grid">${days}</div><div class="calendar-legend"><span class="pending">待面试</span><span class="waiting">等待反馈</span><span class="offer">获得 offer</span><span class="failed">未通过</span></div>`;
+    panel.innerHTML = `<div class="calendar-header"><div class="calendar-heading"><div class="eyebrow">INTERVIEW CALENDAR</div><h2>${year} 年 ${month + 1} 月</h2></div><button class="calendar-today" type="button" data-calendar-today>今天</button><button class="calendar-control" type="button" data-calendar-prev aria-label="上个月">‹</button><button class="calendar-control" type="button" data-calendar-next aria-label="下个月">›</button></div><div class="calendar-weekdays"><span>周日</span><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span></div><div class="calendar-grid">${days}</div><div class="calendar-legend"><span class="pending">待面试</span><span class="waiting">等待反馈</span><span class="offer">获得 offer</span><span class="failed">未通过</span></div>`;
     panel.querySelector('[data-calendar-prev]').onclick = () => { monthCursor = new Date(year, month - 1, 1); render(); };
     panel.querySelector('[data-calendar-next]').onclick = () => { monthCursor = new Date(year, month + 1, 1); render(); };
     panel.querySelector('[data-calendar-today]').onclick = () => { const now = new Date(); monthCursor = new Date(now.getFullYear(), now.getMonth(), 1); render(); };
