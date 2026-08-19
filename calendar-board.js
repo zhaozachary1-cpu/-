@@ -37,7 +37,7 @@
       day.setDate(calendarStart.getDate() + index);
       const key = toKey(day);
       const dayEvents = dateRecords(key);
-      const events = dayEvents.map((record) => `<button type="button" class="calendar-event ${map[record.status]}" data-record-id="${record.id}" title="${esc(record.company)} · ${esc(record.role)}">${formatTime(record.date)} ${esc(record.company)} · ${esc(record.role)}</button>`).join('');
+      const events = dayEvents.map((record) => `<button type="button" class="calendar-event ${map[record.status]}" data-record-id="${record.id}" title="${esc(record.company)}">${formatTime(record.date)} ${esc(record.company)}</button>`).join('');
       return `<div class="calendar-day ${day.getMonth() !== month ? 'outside' : ''} ${key === today ? 'today' : ''}"><div class="calendar-date"><span>${day.getDate()}</span></div>${events}</div>`;
     }).join('');
     panel.innerHTML = `<div class="calendar-header"><div class="calendar-heading"><div class="eyebrow">INTERVIEW CALENDAR</div><h2>${year} 年 ${month + 1} 月</h2></div><button class="calendar-today" type="button" data-calendar-today>今天</button><button class="calendar-control" type="button" data-calendar-prev aria-label="上个月">‹</button><button class="calendar-control" type="button" data-calendar-next aria-label="下个月">›</button></div><div class="calendar-weekdays"><span>周日</span><span>周一</span><span>周二</span><span>周三</span><span>周四</span><span>周五</span><span>周六</span></div><div class="calendar-grid">${days}</div><div class="calendar-legend"><span class="pending">待面试</span><span class="waiting">等待反馈</span><span class="offer">获得 offer</span><span class="failed">未通过</span></div>`;
